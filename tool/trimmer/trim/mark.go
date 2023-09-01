@@ -49,12 +49,15 @@ func (t *Trimmer) markService(svc *parser.Service, ast *parser.Thrift, filename 
 					t.marks[filename][svc] = true
 					t.markFunction(function, ast, filename)
 					t.trimMethodValid[i] = true
-					continue
 				}
 			}
 			continue
 		}
 		t.markFunction(function, ast, filename)
+	}
+
+	if t.trimMethods != nil && (svc.Extends != "" || svc.Reference != nil) {
+		t.traceExtendMethod(svc, ast, filename)
 	}
 
 	if svc.Extends != "" && t.marks[filename][svc] {
@@ -169,4 +172,46 @@ func (t *Trimmer) markTypeDef(theType *parser.Type, ast *parser.Thrift, filename
 			return
 		}
 	}
+}
+
+// for -m, trace the extends and find specified method to base on
+func (t *Trimmer) traceExtendMethod(svc *parser.Service, ast *parser.Thrift, filename string) (ret bool) {
+	for _, function := range svc.Functions {
+		funcName := svc.Name + "." + function.Name
+		for i, method := range t.trimMethods {
+			if funcName == method {
+				t.marks[filename][svc] = true
+				t.markFunction(function, ast, filename)
+				t.trimMethodValid[i] = true
+				ret = true
+			}
+		}
+	}
+	if svc.Extends != "" {
+		var nextSvc *parser.Service
+		if svc.Reference == nil {
+			for i, extend := range ast.Services {
+				if extend.Name == svc.Extends {
+					nextSvc = ast.Services[i]
+					break
+				}
+			}
+		} else {
+			for i, extend := range ast.Includes[svc.Reference.Index].Reference.Services {
+				if extend.Name == svc.Reference.Name {
+					nextSvc = ast.Includes[svc.Reference.Index].Reference.Services[i]
+					break
+				}
+			}
+		}
+		back := t.traceExtendMethod(nextSvc, ast, filename)
+		ret = back || ret
+	}
+	if ret {
+		t.marks[filename][svc] = true
+		if svc.Reference != nil {
+			t.marks[filename][ast.Includes[svc.Reference.Index]] = true
+		}
+	}
+	return ret
 }
