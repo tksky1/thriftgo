@@ -98,7 +98,7 @@ func main() {
 					os.Exit(2)
 				}
 			} else {
-				println("-o should be set as a valid dir to enable -r", err.Error())
+				println("-o should be set as a valid dir to enable -r")
 				os.Exit(2)
 			}
 
