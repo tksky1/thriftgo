@@ -20,13 +20,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cloudwego/thriftgo/generator"
 	"github.com/cloudwego/thriftgo/parser"
 	"github.com/cloudwego/thriftgo/semantic"
 	"github.com/cloudwego/thriftgo/tool/trimmer/dump"
 	"github.com/cloudwego/thriftgo/tool/trimmer/trim"
 	"github.com/cloudwego/thriftgo/version"
-
-	"github.com/cloudwego/thriftgo/generator"
 )
 
 var (
@@ -53,6 +52,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	preserve := true
+	if a.Preserve != "true" && a.Preserve != "false" {
+		help()
+		os.Exit(2)
+	} else {
+		if a.Preserve == "false" {
+			preserve = false
+		}
+	}
+
 	// parse file to ast
 	ast, err := parser.ParseFile(a.IDL, nil, true)
 	check(err)
@@ -65,7 +74,7 @@ func main() {
 	check(semantic.ResolveSymbols(ast))
 
 	// trim ast
-	check(trim.TrimAST(ast, a.Methods))
+	check(trim.TrimAST(ast, a.Methods, !preserve))
 
 	// dump the trimmed ast to idl
 	idl, err := dump.DumpIDL(ast)
@@ -99,7 +108,7 @@ func main() {
 					os.Exit(2)
 				}
 			} else {
-				println("-o should be set as a valid dir to enable -r", err.Error())
+				println("-o should be set as a valid dir to enable -r")
 				os.Exit(2)
 			}
 		}
